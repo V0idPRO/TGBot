@@ -52,6 +52,7 @@ class ChatContext:
 	def __init__(self, word, chatId):
 		self.word = word
 		self.chatId = chatId
+		self.usedButtonTags = []
 
 
 def getRandomWord():
@@ -137,6 +138,7 @@ def handleCallback(call):
 			word = getRandomWord()
 			currentContexts[call.message.chat.id] = ChatContext(word, call.message.chat.id)
 
+			print("contexts = " + str(currentContexts))
 			print("selected word: {" + word + "} for chat: " + call.message.chat.first_name)
 
 			updateOptionsKeyboard(call.message, currentContexts[call.message.chat.id])
@@ -148,6 +150,7 @@ def handleCallback(call):
 			chatContext.usedButtonTags.append(buttonTag)
 			updateOptionsKeyboard(call.message, chatContext)
 
+			print("chat id = " + str(call.message.chat.id))
 			print("selected option: {" + buttonTag + "} for word: " + chatContext.word)
 
 			action = optionButtonActions[buttonTag]
