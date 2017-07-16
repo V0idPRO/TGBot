@@ -70,18 +70,29 @@ def getDictionaryDefinition(word):
 	return definitions[0].text
 
 def getTranslation(word):
-	translator= Translator(to_lang="ru")
-	return translator.translate(word)
+	result = ""
+	try:
+		translator= Translator(to_lang="ru")
+		result = translator.translate(word)
+	except:
+		result = "Ooops! Error =("
+	return result
+
 
 def getImageURL(word):
-	url = "https://www.google.co.in/search?q=" + word + "&source=lnms&tbm=isch"
-	header={'User-Agent':"Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/43.0.2357.134 Safari/537.36"}
-	soup = BeautifulSoup(urllib2.urlopen(urllib2.Request(url,headers=header)),'html.parser')
-	imageURLs = []
-	for a in soup.find_all("div",{"class":"rg_meta"}):
-	    link = json.loads(a.text)["ou"]
-	    imageURLs.append(link)
-	return imageURLs[0]
+	result = ""
+	try:
+		url = "https://www.google.co.in/search?q=" + word + "&source=lnms&tbm=isch"
+		header={'User-Agent':"Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/43.0.2357.134 Safari/537.36"}
+		soup = BeautifulSoup(urllib2.urlopen(urllib2.Request(url,headers=header)),'html.parser')
+		imageURLs = []
+		for a in soup.find_all("div",{"class":"rg_meta"}):
+		    link = json.loads(a.text)["ou"]
+		    imageURLs.append(link)
+		result = imageURLs[0]
+	except:
+		result = "https://blog.sqlauthority.com/wp-content/uploads/2015/10/errorstop.png"
+	return result
 
 def getXKCDImage():
 	comicsId = random.randint(1,1862)
