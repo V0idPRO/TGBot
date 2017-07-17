@@ -8,7 +8,8 @@ import json
 import random
 from telebot import types
 from wordnik import *
-from translate import Translator
+#from translate import Translator
+from googletrans import Translator
 from bs4 import BeautifulSoup
 
 #tg
@@ -73,8 +74,10 @@ def getDictionaryDefinition(word):
 def getTranslation(word):
 	result = ""
 	try:
-		translator= Translator(to_lang="ru")
-		result = translator.translate(word)
+#		translator= Translator(to_lang="ru")
+#		result = translator.translate(word)
+		translator = Translator()
+		result = translator.translate(word, src='en', dest='ru').text
 	except:
 		result = "Ooops! Error =("
 	return result
@@ -146,7 +149,7 @@ def handleCallback(call):
 
 			print("selected word: {" + word + "} for chat: " + call.message.chat.first_name)
 
-			updateOptionsKeyboard(call.message, context.chatId)
+			updateOptionsKeyboard(call.message, context)
 		if buttonTag == xkcdComicsButtonTag:
 			print("selected xkcd")
 			bot.send_photo(call.message.chat.id, getXKCDImage())
