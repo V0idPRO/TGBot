@@ -141,12 +141,12 @@ def handleCallback(call):
 		buttonTag = call.data
 		if buttonTag == randomWordButtonTag:
 			word = getRandomWord()
-			currentContexts[call.message.chat.id] = ChatContext(word, call.message.chat.id)
+			context = ChatContext(word, call.message.chat.id)
+			currentContexts[call.message.chat.id] = context
 
-			print("contexts = " + str(currentContexts))
 			print("selected word: {" + word + "} for chat: " + call.message.chat.first_name)
 
-			updateOptionsKeyboard(call.message, currentContexts[call.message.chat.id])
+			updateOptionsKeyboard(call.message, context.chatId)
 		if buttonTag == xkcdComicsButtonTag:
 			print("selected xkcd")
 			bot.send_photo(call.message.chat.id, getXKCDImage())
