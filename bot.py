@@ -39,11 +39,11 @@ optionButtonActions = {
 	dismissButtonTag : (lambda chatContext: 
 		dismissButtonAction(chatContext)
 	),
-	exampleButtonTag : (lambda chatContext: 
-		bot.send_message(chatContext.chatId, getExample(chatContext.word))
+	exampleButtonTag : (lambda chatContext:
+		exampleButtonAction(chatContext)
 	),
 	dictionaryButtonTag : (lambda chatContext:
-		bot.send_message(chatContext.chatId, getDictionaryDefinition(chatContext.word))
+		definitionButtonAction(chatContext)
 	),
 	imageButtonTag : (lambda chatContext: 
 		imageButtonAction(chatContext)
@@ -56,26 +56,66 @@ optionButtonActions = {
 class ChatContext:
 	word = ""
 	chatId = 0
+	imageURLs = []
+	examples = []
+	definitions = []
+
+	imageURLsCounter = 0
+	exampleCounter = 0
+	definitionsCounter = 0
 
 	def __init__(self, chatId):
 		self.word = ""
 		self.chatId = chatId
 
+		self.examples = []
+		self.imageURLs = []
+		self.definitions = []
+
+		self.exampleCounter = 0
+		self.imageURLsCounter = 0
+		self.definitionsCounter = 0
+
+	def getNextImageURL(self):
+		url = self.imageURLs[self.imageURLsCounter]
+		if self.imageURLsCounter + 1 >= len(self.imageURLs):
+			self.imageURLsCounter = 0
+		else:
+			self.imageURLsCounter += 1
+		return url
+
+	def getNextExample(self):
+		example = self.examples[self.exampleCounter]
+		if self.exampleCounter + 1 >= len(self.examples):
+			self.exampleCounter = 0
+		else:
+			self.exampleCounter += 1
+		return example
+
+	def getNextDefinition(self):
+		definition = self.definitions[self.definitionsCounter]
+		if self.definitionsCounter + 1 >= len(self.definitions):
+			self.definitionsCounter = 0
+		else:
+			self.definitionsCounter += 1
+		return definition
+
 # logic
 def getRandomWord():
 	wordsApi = WordsApi.WordsApi(wordLinkClient)
-	wordObj = wordsApi.getRandomWord(hasDictionaryDef = 'true', minCorpusCount = 100000, includePartOfSpeech = 'noun,adjective,')
+	#,adjective,verb,adverb
+	wordObj = wordsApi.getRandomWord(hasDictionaryDef = 'true', minCorpusCount = 100000, includePartOfSpeech = 'noun', excludePartOfSpeech = 'noun-plural')
 	return wordObj.word
 
-def getExample(word):
+def getExamples(word):
 	wordApi = WordApi.WordApi(wordLinkClient)
-	example = wordApi.getTopExample(word = word)
-	return example.text
+	example = wordApi.getExamples(word = word)
+	return example.examples
 
-def getDictionaryDefinition(word):
+def getDictionaryDefinitions(word):
 	wordApi = WordApi.WordApi(wordLinkClient)
-	definitions = wordApi.getDefinitions(word = word, limit = 1)
-	return definitions[0].text
+	definitions = wordApi.getDefinitions(word = word)
+	return definitions
 
 def getTranslation(word):
 	result = ""
@@ -87,8 +127,8 @@ def getTranslation(word):
 	return result
 
 
-def getImageURL(word):
-	result = ""
+def getImageURLs(word):
+	result = []
 	try:
 		url = "https://www.google.co.in/search?q=" + word + "&source=lnms&tbm=isch"
 		header={'User-Agent':"Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/43.0.2357.134 Safari/537.36"}
@@ -97,9 +137,9 @@ def getImageURL(word):
 		for a in soup.find_all("div",{"class":"rg_meta"}):
 		    link = json.loads(a.text)["ou"]
 		    imageURLs.append(link)
-		result = imageURLs[0]
+		result = imageURLs
 	except:
-		result = "https://blog.sqlauthority.com/wp-content/uploads/2015/10/errorstop.png"
+		result = ["https://blog.sqlauthority.com/wp-content/uploads/2015/10/errorstop.png"]
 	return result
 
 def getXKCDImage():
@@ -116,7 +156,35 @@ def getXKCDImage():
 # button actions
 def imageButtonAction(chatContext):
 	bot.send_chat_action(chatContext.chatId, "upload_photo")
-	return bot.send_photo(chatContext.chatId, getImageURL(chatContext.word))
+	imageURLs = getImageURLs(chatContext.word)
+	if not chatContext.imageURLs:
+		chatContext.imageURLs = imageURLs
+	return bot.send_photo(chatContext.chatId, chatContext.getNextImageURL())
+
+def exampleButtonAction(chatContext):
+	examples = getExamples(chatContext.word)
+	if not chatContext.examples:
+		chatContext.examples = examples
+	example = chatContext.getNextExample()
+
+	formattedWord = "*" + chatContext.word + "*"
+	formattedMessage = example.text
+	formattedTitle = "_" + example.title + "_"
+	formattedURL = "[LINK -> CLICK]" + "(" + example.url + ")"
+	message = formattedWord + "\n" + formattedMessage + "\n" + formattedTitle + "\n" + formattedURL
+	return bot.send_message(chatContext.chatId, message, parse_mode = "Markdown")
+
+def definitionButtonAction(chatContext):
+	definitions = getDictionaryDefinitions(chatContext.word)
+	if not chatContext.definitions:
+		chatContext.definitions = definitions
+	definition = chatContext.getNextDefinition()
+
+	formattedWord = "*" + chatContext.word + "*"
+	formattedMessage = definition.text
+	formattedTitle = "_" + definition.attributionText + "_"
+	message = formattedWord + "\n" + formattedMessage + "\n" + formattedTitle
+	return bot.send_message(chatContext.chatId, message, parse_mode = "Markdown")
 
 def dismissButtonAction(chatContext):
 	msg = bot.send_message(chatContext.chatId, "Dismiss", reply_markup = types.ReplyKeyboardRemove())
