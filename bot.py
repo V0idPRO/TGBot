@@ -19,15 +19,26 @@ wordLinkUrl = 'http://api.wordnik.com/v4'
 wordLinkClient = swagger.ApiClient(config.wordLinkKey, wordLinkUrl)
 
 #buttons
-randomWordButtonTag = 'randomWordButtonTag'
-exampleButtonTag = 'exampleButtonTag'
-dictionaryButtonTag = 'dictionaryButtonTag'
-imageButtonTag = 'imageButtonTag'
-translationButtonTag = 'translationButtonTag'
-xkcdComicsButtonTag = 'xkcdComicsButtonTag'
+randomWordButtonTag = 'Give me random word'
+xkcdComicsButtonTag = 'Give me XKCD comics'
+dismissButtonTag = 'Dismiss'
+
+exampleButtonTag = 'Example'
+dictionaryButtonTag = 'Dictionary Definition'
+imageButtonTag = 'Image'
+translationButtonTag = 'Translation'
+
+#data
+currentContexts = {}
 
 #button actions
 optionButtonActions = {
+	xkcdComicsButtonTag : (lambda chatContext: 
+		bot.send_photo(chatContext.chatId, getXKCDImage())
+	),
+	dismissButtonTag : (lambda chatContext: 
+		dismissButtonAction(chatContext)
+	),
 	exampleButtonTag : (lambda chatContext: 
 		bot.send_message(chatContext.chatId, getExample(chatContext.word))
 	),
@@ -35,29 +46,25 @@ optionButtonActions = {
 		bot.send_message(chatContext.chatId, getDictionaryDefinition(chatContext.word))
 	),
 	imageButtonTag : (lambda chatContext: 
-		bot.send_photo(chatContext.chatId, getImageURL(chatContext.word))
+		imageButtonAction(chatContext)
 	),
 	translationButtonTag : (lambda chatContext:
 		bot.send_message(chatContext.chatId, getTranslation(chatContext.word))
 	) }
 
-#data
-currentContexts = {}
 
 class ChatContext:
 	word = ""
 	chatId = 0
-	usedButtonTags = []
 
-	def __init__(self, word, chatId):
-		self.word = word
+	def __init__(self, chatId):
+		self.word = ""
 		self.chatId = chatId
-		self.usedButtonTags = []
 
-
+# logic
 def getRandomWord():
 	wordsApi = WordsApi.WordsApi(wordLinkClient)
-	wordObj = wordsApi.getRandomWord(hasDictionaryDef = 'true', minCorpusCount = 100000)
+	wordObj = wordsApi.getRandomWord(hasDictionaryDef = 'true', minCorpusCount = 100000, includePartOfSpeech = 'noun,adjective,')
 	return wordObj.word
 
 def getExample(word):
@@ -106,61 +113,60 @@ def getXKCDImage():
 		result = "https://blog.sqlauthority.com/wp-content/uploads/2015/10/errorstop.png"
 	return result
 
-def getOptionsKeyboard(excludedButtonTags):
-	keyboard = types.InlineKeyboardMarkup()
-	if not exampleButtonTag in excludedButtonTags:
-		exampleButton = types.InlineKeyboardButton(text="Example", callback_data=exampleButtonTag)
-		keyboard.add(exampleButton)
-	if not imageButtonTag in excludedButtonTags:
-		imgButton = types.InlineKeyboardButton(text="Image", callback_data=imageButtonTag)	
-		keyboard.add(imgButton)
-	if not translationButtonTag in excludedButtonTags:
-		translationButton = types.InlineKeyboardButton(text="Translation", callback_data=translationButtonTag)
-		keyboard.add(translationButton)
-	if not dictionaryButtonTag in excludedButtonTags:
-		dictButton = types.InlineKeyboardButton(text="Dictionary definition", callback_data=dictionaryButtonTag)
-		keyboard.add(dictButton)
+# button actions
+def imageButtonAction(chatContext):
+	bot.send_chat_action(chatContext.chatId, "upload_photo")
+	return bot.send_photo(chatContext.chatId, getImageURL(chatContext.word))
+
+def dismissButtonAction(chatContext):
+	msg = bot.send_message(chatContext.chatId, "Dismiss", reply_markup = types.ReplyKeyboardRemove())
+	del currentContexts[chatContext.chatId]
+	return msg
+
+# stuff
+def getOptionsKeyboard():
+	keyboard = types.ReplyKeyboardMarkup()
+	keyboard.row(exampleButtonTag)
+	keyboard.row(imageButtonTag)
+	keyboard.row(translationButtonTag)
+	keyboard.row(dictionaryButtonTag)
+	keyboard.row(dismissButtonTag)
 	return keyboard
 
-def updateOptionsKeyboard(message, chatContext):
-	bot.edit_message_text(chat_id=message.chat.id, message_id=message.message_id, text=chatContext.word, reply_markup=getOptionsKeyboard(chatContext.usedButtonTags))
+def handleMenu(message):
+	buttonTag = message.text
+	if buttonTag == randomWordButtonTag:
+		word = getRandomWord()
+		currentContexts[message.chat.id].word = word
 
+		print("selected word: {" + word + "} for chat: " + message.chat.first_name)
+		msg = bot.send_message(message.chat.id, "*"+word+"*", parse_mode = "Markdown", reply_markup = getOptionsKeyboard())
+		# TODO: USe lambda here do distinguish buttons later!
+		bot.register_next_step_handler(msg, handleMenu)
+	elif buttonTag in optionButtonActions:
+		chatContext = currentContexts[message.chat.id]
+		print("chatId: {" + message.chat.first_name + "} selected option: {" + buttonTag + "} for word: " + chatContext.word)
+
+		action = optionButtonActions[buttonTag]
+		msg = action(chatContext)
+		# TODO: USe lambda here do distinguish buttons later!
+		bot.register_next_step_handler(msg, handleMenu)
 
 @bot.message_handler(content_types=["text"])
 def handleMessage(message):
-	keyboard = types.InlineKeyboardMarkup()
-	randomWordButton = types.InlineKeyboardButton(text="Give me random word", callback_data=randomWordButtonTag)
-	xkcdComics = types.InlineKeyboardButton(text="Give me XKCD comics", callback_data=xkcdComicsButtonTag)
-	keyboard.add(randomWordButton, xkcdComics)
+	chatId = message.chat.id
+	if not chatId in currentContexts:
+		keyboard = types.ReplyKeyboardMarkup()
+		keyboard.row(randomWordButtonTag)
+		keyboard.row(xkcdComicsButtonTag)
+		keyboard.row(dismissButtonTag)
+		
+		context = ChatContext(chatId)
+		currentContexts[chatId] = context
 
-	bot.send_message(message.chat.id, "Please, select an option", reply_markup=keyboard)
-
-@bot.callback_query_handler(func=lambda call: True)
-def handleCallback(call):
-	if call.message:
-		buttonTag = call.data
-		if buttonTag == randomWordButtonTag:
-			word = getRandomWord()
-			context = ChatContext(word, call.message.chat.id)
-			currentContexts[call.message.chat.id] = context
-
-			print("selected word: {" + word + "} for chat: " + call.message.chat.first_name)
-
-			updateOptionsKeyboard(call.message, context)
-		if buttonTag == xkcdComicsButtonTag:
-			print("selected xkcd")
-			bot.send_photo(call.message.chat.id, getXKCDImage())
-		elif call.message.chat.id in currentContexts:
-			chatContext = currentContexts[call.message.chat.id]
-			chatContext.usedButtonTags.append(buttonTag)
-			updateOptionsKeyboard(call.message, chatContext)
-
-			print("chat id = " + str(call.message.chat.id))
-			print("selected option: {" + buttonTag + "} for word: " + chatContext.word)
-
-			action = optionButtonActions[buttonTag]
-			action(chatContext)
-
+		msg = bot.send_message(chatId, "Please, select an option", reply_markup=keyboard)
+		# TODO: USe lambda here do distinguish buttons later!
+		bot.register_next_step_handler(msg, handleMenu)
 
 if __name__ == '__main__':
      bot.polling(none_stop=True)
