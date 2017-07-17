@@ -96,10 +96,15 @@ def getImageURL(word):
 	return result
 
 def getXKCDImage():
-	comicsId = random.randint(1,1862)
-	url = "https://xkcd.com/" + str(comicsId) + "/info.0.json"
-	resultJSON = urllib2.urlopen(url).read()
-	return json.loads(resultJSON)['img']
+	result = ""
+	try:
+		comicsId = random.randint(1,1862)
+		url = "https://xkcd.com/" + str(comicsId) + "/info.0.json"
+		resultJSON = urllib2.urlopen(url).read()
+		result = json.loads(resultJSON)['img']
+	except:
+		result = "https://blog.sqlauthority.com/wp-content/uploads/2015/10/errorstop.png"
+	return result
 
 def getOptionsKeyboard(excludedButtonTags):
 	keyboard = types.InlineKeyboardMarkup()
