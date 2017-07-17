@@ -8,7 +8,6 @@ import json
 import random
 from telebot import types
 from wordnik import *
-#from translate import Translator
 from googletrans import Translator
 from bs4 import BeautifulSoup
 
@@ -74,8 +73,6 @@ def getDictionaryDefinition(word):
 def getTranslation(word):
 	result = ""
 	try:
-#		translator= Translator(to_lang="ru")
-#		result = translator.translate(word)
 		translator = Translator()
 		result = translator.translate(word, src='en', dest='ru').text
 	except:
