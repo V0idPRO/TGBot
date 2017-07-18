@@ -76,45 +76,38 @@ class ChatContext:
 		self.imageURLsCounter = 0
 		self.definitionsCounter = 0
 
+	def getNextIndex(self, array, currentIndex):
+		if currentIndex + 1 >= len(array):
+			return 0
+		return currentIndex + 1
+
 	def getNextImageURL(self):
-		url = self.imageURLs[self.imageURLsCounter]
-		if self.imageURLsCounter + 1 >= len(self.imageURLs):
-			self.imageURLsCounter = 0
-		else:
-			self.imageURLsCounter += 1
-		return url
+		self.imageURLsCounter = self.getNextIndex(self.imageURLs, self.imageURLsCounter)
+		return self.imageURLs[self.imageURLsCounter]
 
 	def getNextExample(self):
-		example = self.examples[self.exampleCounter]
-		if self.exampleCounter + 1 >= len(self.examples):
-			self.exampleCounter = 0
-		else:
-			self.exampleCounter += 1
-		return example
+		self.exampleCounter = self.getNextIndex(self.examples, self.exampleCounter)
+		return self.examples[self.exampleCounter]
 
 	def getNextDefinition(self):
-		definition = self.definitions[self.definitionsCounter]
-		if self.definitionsCounter + 1 >= len(self.definitions):
-			self.definitionsCounter = 0
-		else:
-			self.definitionsCounter += 1
-		return definition
+		self.definitionsCounter = self.getNextIndex(self.definitions, self.definitionsCounter)
+		return self.definitions[self.definitionsCounter]
 
 # logic
 def getRandomWord():
-	wordsApi = WordsApi.WordsApi(wordLinkClient)
-	#,adjective,verb,adverb
-	wordObj = wordsApi.getRandomWord(hasDictionaryDef = 'true', minCorpusCount = 100000, includePartOfSpeech = 'noun', excludePartOfSpeech = 'noun-plural')
-	return wordObj.word
+	# This piece of shit - WordsApi has a bug: it encodes CSV params twice! So, we can't use multiple values in includePartOfSpeech
+	wordObj = WordsApi.WordsApi(wordLinkClient).getRandomWord(hasDictionaryDef = 'true', minCorpusCount = 100000, includePartOfSpeech = "noun")
+
+	# Also, this piece of shit - Wordnik - returns PLURALS. So, make a hack to avoid them
+	canonicalWordObj = WordApi.WordApi(wordLinkClient).getWord(word = wordObj.word, useCanonical = 'true')
+	return canonicalWordObj.canonicalForm or canonicalWordObj.word
 
 def getExamples(word):
-	wordApi = WordApi.WordApi(wordLinkClient)
-	example = wordApi.getExamples(word = word)
+	example = WordApi.WordApi(wordLinkClient).getExamples(word = word)
 	return example.examples
 
 def getDictionaryDefinitions(word):
-	wordApi = WordApi.WordApi(wordLinkClient)
-	definitions = wordApi.getDefinitions(word = word)
+	definitions = WordApi.WordApi(wordLinkClient).getDefinitions(word = word)
 	return definitions
 
 def getTranslation(word):
@@ -167,12 +160,12 @@ def exampleButtonAction(chatContext):
 		chatContext.examples = examples
 	example = chatContext.getNextExample()
 
-	formattedWord = "*" + chatContext.word + "*"
+	formattedWord = "<b>" + chatContext.word + "</b>"
 	formattedMessage = example.text
-	formattedTitle = "_" + example.title + "_"
-	formattedURL = "[LINK -> CLICK]" + "(" + example.url + ")"
+	formattedTitle = "<i>" + example.title + "</i>"
+	formattedURL = "<a href=\"" + example.url + "\">LINK -> CLICK</a>"
 	message = formattedWord + "\n" + formattedMessage + "\n" + formattedTitle + "\n" + formattedURL
-	return bot.send_message(chatContext.chatId, message, parse_mode = "Markdown")
+	return bot.send_message(chatContext.chatId, message, parse_mode = "HTML")
 
 def definitionButtonAction(chatContext):
 	definitions = getDictionaryDefinitions(chatContext.word)
@@ -180,11 +173,11 @@ def definitionButtonAction(chatContext):
 		chatContext.definitions = definitions
 	definition = chatContext.getNextDefinition()
 
-	formattedWord = "*" + chatContext.word + "*"
+	formattedWord = "<b>" + chatContext.word + "</b>"
 	formattedMessage = definition.text
-	formattedTitle = "_" + definition.attributionText + "_"
+	formattedTitle = "<i>" + definition.attributionText + "</i>"
 	message = formattedWord + "\n" + formattedMessage + "\n" + formattedTitle
-	return bot.send_message(chatContext.chatId, message, parse_mode = "Markdown")
+	return bot.send_message(chatContext.chatId, message, parse_mode = "HTML")
 
 def dismissButtonAction(chatContext):
 	msg = bot.send_message(chatContext.chatId, "Dismiss", reply_markup = types.ReplyKeyboardRemove())
@@ -194,6 +187,7 @@ def dismissButtonAction(chatContext):
 # stuff
 def getOptionsKeyboard():
 	keyboard = types.ReplyKeyboardMarkup()
+	keyboard.row(randomWordButtonTag)
 	keyboard.row(exampleButtonTag)
 	keyboard.row(imageButtonTag)
 	keyboard.row(translationButtonTag)
