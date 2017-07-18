@@ -26,6 +26,7 @@ dismissButtonTag = 'Dismiss'
 exampleButtonTag = 'Example'
 dictionaryButtonTag = 'Dictionary Definition'
 imageButtonTag = 'Image'
+audioButtonTag = 'Audio'
 translationButtonTag = 'Translation'
 
 #data
@@ -47,6 +48,9 @@ optionButtonActions = {
 	),
 	imageButtonTag : (lambda chatContext: 
 		imageButtonAction(chatContext)
+	),
+	audioButtonTag : (lambda chatContext: 
+		audioButtonAction(chatContext)
 	),
 	translationButtonTag : (lambda chatContext:
 		bot.send_message(chatContext.chatId, getTranslation(chatContext.word))
@@ -119,7 +123,6 @@ def getTranslation(word):
 		result = "Ooops! Error =("
 	return result
 
-
 def getImageURLs(word):
 	result = []
 	try:
@@ -134,6 +137,11 @@ def getImageURLs(word):
 	except:
 		result = ["https://blog.sqlauthority.com/wp-content/uploads/2015/10/errorstop.png"]
 	return result
+
+def getAudioURL(word):
+	audios = WordApi.WordApi(wordLinkClient).getAudio(word = word, useCanonical = 'true', limit = 1)
+	audio = next(iter(audios or []), None)
+	return audio.fileUrl if audio else None
 
 def getXKCDImage():
 	result = ""
@@ -153,6 +161,13 @@ def imageButtonAction(chatContext):
 	if not chatContext.imageURLs:
 		chatContext.imageURLs = imageURLs
 	return bot.send_photo(chatContext.chatId, chatContext.getNextImageURL())
+
+def audioButtonAction(chatContext):
+	audioURL = getAudioURL(chatContext.word)
+	if audioURL:
+		return bot.send_voice(chatContext.chatId, audioURL)
+	else :
+		return bot.send_message(chatContext.chatId, "Sorry, no audio for " + chatContext.word)
 
 def exampleButtonAction(chatContext):
 	examples = getExamples(chatContext.word)
@@ -190,6 +205,7 @@ def getOptionsKeyboard():
 	keyboard.row(randomWordButtonTag)
 	keyboard.row(exampleButtonTag)
 	keyboard.row(imageButtonTag)
+	keyboard.row(audioButtonTag)
 	keyboard.row(translationButtonTag)
 	keyboard.row(dictionaryButtonTag)
 	keyboard.row(dismissButtonTag)
