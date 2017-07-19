@@ -6,6 +6,7 @@ import telebot
 import urllib2
 import json
 import random
+from wikiapi import WikiApi
 from telebot import types
 from wordnik import *
 from googletrans import Translator
@@ -24,6 +25,7 @@ xkcdComicsButtonTag = 'Give me XKCD comics'
 dismissButtonTag = 'Dismiss'
 
 exampleButtonTag = 'Example'
+wikiButtonTag = 'Wikipedia'
 dictionaryButtonTag = 'Dictionary Definition'
 imageButtonTag = 'Image'
 audioButtonTag = 'Audio'
@@ -45,6 +47,9 @@ optionButtonActions = {
 	),
 	dictionaryButtonTag : (lambda chatContext:
 		definitionButtonAction(chatContext)
+	),
+	wikiButtonTag : (lambda chatContext:
+		wikiButtonAction(chatContext)
 	),
 	imageButtonTag : (lambda chatContext: 
 		imageButtonAction(chatContext)
@@ -132,6 +137,12 @@ def getTranslation(word):
 		result = "Ooops! Error =("
 	return result
 
+def getWikiArticle(word):
+	wiki = WikiApi({ 'locale' : 'simple'})
+	results = wiki.find(word)
+	result = next(iter(results or []), None)
+	return wiki.get_article(result) if result else None
+
 def getImageURLs(word):
 	result = []
 	try:
@@ -185,7 +196,7 @@ def exampleButtonAction(chatContext):
 	formattedWord = "<b>" + chatContext.word + "</b>"
 	formattedMessage = example.text
 	formattedTitle = "<i>" + example.title + "</i>"
-	formattedURL = "<a href=\"" + example.url + "\">LINK -> CLICK</a>"
+	formattedURL = "<a href=\"" + example.url + "\">" + example.url + "</a>"
 	message = formattedWord + "\n" + formattedMessage + "\n" + formattedTitle + "\n" + formattedURL
 	return bot.send_message(chatContext.chatId, message, parse_mode = "HTML")
 
@@ -200,6 +211,17 @@ def definitionButtonAction(chatContext):
 	message = formattedWord + "\n" + formattedMessage + "\n" + formattedTitle
 	return bot.send_message(chatContext.chatId, message, parse_mode = "HTML")
 
+def wikiButtonAction(chatContext):
+	article = getWikiArticle(chatContext.word)
+	if article:
+		formattedWord = "<b>" + chatContext.word + "</b>"
+		formattedMessage = article.summary
+		formattedURL = "<a href=\"" + article.url + "\">" + article.url + "</a>"
+		message = formattedWord + "\n" + formattedMessage + "\n" + formattedURL
+		return bot.send_message(chatContext.chatId, message, parse_mode = "HTML")
+	else:
+		return bot.send_message(chatContext.chatId, "Sorry, no results for " + chatContext.word)
+
 def dismissButtonAction(chatContext):
 	msg = bot.send_message(chatContext.chatId, "Dismiss", reply_markup = types.ReplyKeyboardRemove())
 	del currentContexts[chatContext.chatId]
@@ -209,6 +231,7 @@ def dismissButtonAction(chatContext):
 def getOptionsKeyboard():
 	keyboard = types.ReplyKeyboardMarkup()
 	keyboard.row(dictionaryButtonTag)
+	keyboard.row(wikiButtonTag)
 	keyboard.row(audioButtonTag)
 	keyboard.row(translationButtonTag)
 	keyboard.row(imageButtonTag)
