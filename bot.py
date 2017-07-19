@@ -80,6 +80,15 @@ class ChatContext:
 		self.imageURLsCounter = 0
 		self.definitionsCounter = 0
 
+	def clean(self):
+		self.examples = []
+		self.imageURLs = []
+		self.definitions = []
+
+		self.exampleCounter = 0
+		self.imageURLsCounter = 0
+		self.definitionsCounter = 0		
+
 	def getNextIndex(self, array, currentIndex):
 		if currentIndex + 1 >= len(array):
 			return 0
@@ -157,9 +166,8 @@ def getXKCDImage():
 # button actions
 def imageButtonAction(chatContext):
 	bot.send_chat_action(chatContext.chatId, "upload_photo")
-	imageURLs = getImageURLs(chatContext.word)
 	if not chatContext.imageURLs:
-		chatContext.imageURLs = imageURLs
+		chatContext.imageURLs = getImageURLs(chatContext.word)
 	return bot.send_photo(chatContext.chatId, chatContext.getNextImageURL())
 
 def audioButtonAction(chatContext):
@@ -170,9 +178,8 @@ def audioButtonAction(chatContext):
 		return bot.send_message(chatContext.chatId, "Sorry, no audio for " + chatContext.word)
 
 def exampleButtonAction(chatContext):
-	examples = getExamples(chatContext.word)
 	if not chatContext.examples:
-		chatContext.examples = examples
+		chatContext.examples = getExamples(chatContext.word)
 	example = chatContext.getNextExample()
 
 	formattedWord = "<b>" + chatContext.word + "</b>"
@@ -183,9 +190,8 @@ def exampleButtonAction(chatContext):
 	return bot.send_message(chatContext.chatId, message, parse_mode = "HTML")
 
 def definitionButtonAction(chatContext):
-	definitions = getDictionaryDefinitions(chatContext.word)
 	if not chatContext.definitions:
-		chatContext.definitions = definitions
+		chatContext.definitions = getDictionaryDefinitions(chatContext.word)
 	definition = chatContext.getNextDefinition()
 
 	formattedWord = "<b>" + chatContext.word + "</b>"
@@ -202,27 +208,28 @@ def dismissButtonAction(chatContext):
 # stuff
 def getOptionsKeyboard():
 	keyboard = types.ReplyKeyboardMarkup()
-	keyboard.row(randomWordButtonTag)
-	keyboard.row(exampleButtonTag)
-	keyboard.row(imageButtonTag)
+	keyboard.row(dictionaryButtonTag)
 	keyboard.row(audioButtonTag)
 	keyboard.row(translationButtonTag)
-	keyboard.row(dictionaryButtonTag)
+	keyboard.row(imageButtonTag)
+	keyboard.row(exampleButtonTag)
+	keyboard.row(randomWordButtonTag)
 	keyboard.row(dismissButtonTag)
 	return keyboard
 
 def handleMenu(message):
 	buttonTag = message.text
+	chatContext = currentContexts[message.chat.id]
 	if buttonTag == randomWordButtonTag:
 		word = getRandomWord()
-		currentContexts[message.chat.id].word = word
+		chatContext.word = word
+		chatContext.clean()
 
 		print("selected word: {" + word + "} for chat: " + message.chat.first_name)
 		msg = bot.send_message(message.chat.id, "*"+word+"*", parse_mode = "Markdown", reply_markup = getOptionsKeyboard())
 		# TODO: USe lambda here do distinguish buttons later!
 		bot.register_next_step_handler(msg, handleMenu)
 	elif buttonTag in optionButtonActions:
-		chatContext = currentContexts[message.chat.id]
 		print("chatId: {" + message.chat.first_name + "} selected option: {" + buttonTag + "} for word: " + chatContext.word)
 
 		action = optionButtonActions[buttonTag]
