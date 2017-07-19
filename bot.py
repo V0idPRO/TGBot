@@ -6,6 +6,7 @@ import telebot
 import urllib2
 import json
 import random
+import giphypop
 from wikiapi import WikiApi
 from telebot import types
 from wordnik import *
@@ -22,6 +23,7 @@ wordLinkClient = swagger.ApiClient(config.wordLinkKey, wordLinkUrl)
 #buttons
 randomWordButtonTag = 'Give me random word'
 xkcdComicsButtonTag = 'Give me XKCD comics'
+gifButtonTag = 'Give me random GIF'
 dismissButtonTag = 'Dismiss'
 
 exampleButtonTag = 'Example'
@@ -38,6 +40,9 @@ currentContexts = {}
 optionButtonActions = {
 	xkcdComicsButtonTag : (lambda chatContext: 
 		bot.send_photo(chatContext.chatId, getXKCDImage())
+	),
+	gifButtonTag : (lambda chatContext: 
+		giphyButtonAction(chatContext)
 	),
 	dismissButtonTag : (lambda chatContext: 
 		dismissButtonAction(chatContext)
@@ -174,7 +179,17 @@ def getXKCDImage():
 		result = "https://blog.sqlauthority.com/wp-content/uploads/2015/10/errorstop.png"
 	return result
 
+def getGiphy():
+	giphy = giphypop.Giphy()
+	res = giphy.screensaver()
+	print(res.url)
+	return res.media_url
+
 # button actions
+def giphyButtonAction(chatContext):
+	bot.send_chat_action(chatContext.chatId, "upload_photo")
+	return bot.send_document(chatContext.chatId, getGiphy())
+
 def imageButtonAction(chatContext):
 	bot.send_chat_action(chatContext.chatId, "upload_photo")
 	if not chatContext.imageURLs:
@@ -266,6 +281,7 @@ def handleMessage(message):
 	if not chatId in currentContexts:
 		keyboard = types.ReplyKeyboardMarkup()
 		keyboard.row(randomWordButtonTag)
+		keyboard.row(gifButtonTag)
 		keyboard.row(xkcdComicsButtonTag)
 		keyboard.row(dismissButtonTag)
 		
