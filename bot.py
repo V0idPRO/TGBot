@@ -21,9 +21,11 @@ wordLinkUrl = 'http://api.wordnik.com/v4'
 wordLinkClient = swagger.ApiClient(config.wordLinkKey, wordLinkUrl)
 
 #buttons
-randomWordButtonTag = 'Give me random word'
-xkcdComicsButtonTag = 'Give me XKCD comics'
-gifButtonTag = 'Give me random GIF'
+randomWordButtonTag = 'Random Word'
+randomWikiButtonTag = 'Random English Wiki article'
+randomSimpleWikiButtonTag = 'Random Simplified Wiki article'
+xkcdComicsButtonTag = 'Random XKCD Comics'
+gifButtonTag = 'Random GIF'
 dismissButtonTag = 'Dismiss'
 
 exampleButtonTag = 'Example'
@@ -43,6 +45,12 @@ optionButtonActions = {
 	),
 	gifButtonTag : (lambda chatContext: 
 		giphyButtonAction(chatContext)
+	),
+	randomWikiButtonTag : (lambda chatContext: 
+		randomWikiButtonAction(chatContext, simplified = False)
+	),
+	randomSimpleWikiButtonTag : (lambda chatContext: 
+		randomWikiButtonAction(chatContext, simplified = True)
 	),
 	dismissButtonTag : (lambda chatContext: 
 		dismissButtonAction(chatContext)
@@ -142,8 +150,8 @@ def getTranslation(word):
 		result = "Ooops! Error =("
 	return result
 
-def getWikiArticle(word):
-	wiki = WikiApi({ 'locale' : 'simple'})
+def getWikiArticle(word, locale):
+	wiki = WikiApi({ 'locale' : locale})
 	results = wiki.find(word)
 	result = next(iter(results or []), None)
 	return wiki.get_article(result) if result else None
@@ -184,6 +192,11 @@ def getGiphy():
 	res = giphy.screensaver()
 	print(res.url)
 	return res.media_url
+
+def getRandomWikiArticle(simplified):
+	word = getRandomWord()
+	locale = 'simple' if simplified else 'en'
+	return getWikiArticle(word, locale) 
 
 # button actions
 def giphyButtonAction(chatContext):
@@ -237,6 +250,17 @@ def wikiButtonAction(chatContext):
 	else:
 		return bot.send_message(chatContext.chatId, "Sorry, no results for " + chatContext.word)
 
+def randomWikiButtonAction(chatContext, simplified):
+	article = getRandomWikiArticle(simplified)
+	if article:
+		formattedWord = "<b>" + article.heading + "</b>"
+		formattedMessage = article.summary
+		formattedURL = "<a href=\"" + article.url + "\">" + article.url + "</a>"
+		message = formattedWord + "\n" + formattedMessage + "\n" + formattedURL
+		return bot.send_message(chatContext.chatId, message, parse_mode = "HTML")
+	else:
+		return randomWikiButtonAction(chatContext, simplified)
+
 def dismissButtonAction(chatContext):
 	msg = bot.send_message(chatContext.chatId, "Dismiss", reply_markup = types.ReplyKeyboardRemove())
 	del currentContexts[chatContext.chatId]
@@ -281,6 +305,8 @@ def handleMessage(message):
 	if not chatId in currentContexts:
 		keyboard = types.ReplyKeyboardMarkup()
 		keyboard.row(randomWordButtonTag)
+		keyboard.row(randomWikiButtonTag)
+		keyboard.row(randomSimpleWikiButtonTag)
 		keyboard.row(gifButtonTag)
 		keyboard.row(xkcdComicsButtonTag)
 		keyboard.row(dismissButtonTag)
@@ -293,4 +319,9 @@ def handleMessage(message):
 		bot.register_next_step_handler(msg, handleMenu)
 
 if __name__ == '__main__':
-     bot.polling(none_stop=True)
+	while True:
+		try:
+			bot.polling(none_stop=True)
+		except: 
+			print('error: {}'.format(sys.exc_info()[0]))
+			time.sleep(5)
