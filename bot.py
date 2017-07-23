@@ -5,8 +5,11 @@ import config
 import telebot
 import urllib2
 import json
+import time
+import sys
 import random
 import giphypop
+import traceback
 from wikiapi import WikiApi
 from telebot import types
 from wordnik import *
@@ -22,8 +25,8 @@ wordLinkClient = swagger.ApiClient(config.wordLinkKey, wordLinkUrl)
 
 #buttons
 randomWordButtonTag = 'Random Word'
-randomWikiButtonTag = 'Random English Wiki article'
-randomSimpleWikiButtonTag = 'Random Simplified Wiki article'
+randomWikiButtonTag = 'English Wikipedia'
+randomSimpleWikiButtonTag = 'Simple English Wikipedia'
 xkcdComicsButtonTag = 'Random XKCD Comics'
 gifButtonTag = 'Random GIF'
 dismissButtonTag = 'Dismiss'
@@ -240,7 +243,7 @@ def definitionButtonAction(chatContext):
 	return bot.send_message(chatContext.chatId, message, parse_mode = "HTML")
 
 def wikiButtonAction(chatContext):
-	article = getWikiArticle(chatContext.word)
+	article = getWikiArticle(chatContext.word, 'simple')
 	if article:
 		formattedWord = "<b>" + chatContext.word + "</b>"
 		formattedMessage = article.summary
@@ -299,6 +302,28 @@ def handleMenu(message):
 		# TODO: USe lambda here do distinguish buttons later!
 		bot.register_next_step_handler(msg, handleMenu)
 
+@bot.message_handler(commands=['word'])
+def handleWordCommand(message):
+	word = message.text.split("/word", 1)[1].strip()
+	if not word:
+		return
+	
+	print (word)
+	chatId = message.chat.id
+	context = None
+	if not chatId in currentContexts:
+		context = ChatContext(chatId)
+		currentContexts[chatId] = context
+	else:
+		context = currentContexts[chatId]
+	context.word = word
+	context.clean()
+
+	print("selected CUSTOM word: {" + word + "} for chat: " + message.chat.first_name)
+	msg = bot.send_message(chatId, "*"+word+"*", parse_mode = "Markdown", reply_markup = getOptionsKeyboard())
+	# TODO: USe lambda here do distinguish buttons later!
+	bot.register_next_step_handler(msg, handleMenu)
+
 @bot.message_handler(content_types=["text"])
 def handleMessage(message):
 	chatId = message.chat.id
@@ -322,6 +347,7 @@ if __name__ == '__main__':
 	while True:
 		try:
 			bot.polling(none_stop=True)
-		except: 
-			print('error: {}'.format(sys.exc_info()[0]))
+		except:
+			T, V, TB = sys.exc_info()
+  			print(''.join(traceback.format_exception(T,V,TB)))
 			time.sleep(5)
