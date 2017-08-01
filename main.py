@@ -11,6 +11,8 @@ bot = telebot.TeleBot(config.tgApiKey, threaded = False)
 
 def start():
     if config.useWebHooks:
+        print('Using Web Hooks!')
+
         import flask
 
         WEBHOOK_URL_BASE = "https://%s" % (config.webHookHost)
@@ -40,11 +42,13 @@ def start():
         # Set webhook
         bot.set_webhook(url=WEBHOOK_URL_BASE+WEBHOOK_URL_PATH)
 
+        return app
     else:
+        print('Using Polling!')
         while True:
             try:
                 bot.polling(none_stop=True)
             except:
                 T, V, TB = sys.exc_info()
                 print(''.join(traceback.format_exception(T,V,TB)))
-                time.sleep(5)    
+                time.sleep(5)

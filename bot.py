@@ -324,6 +324,36 @@ def handleWordCommand(message):
     # TODO: USe lambda here do distinguish buttons later!
     bot.register_next_step_handler(msg, handleMenu)
 
+@bot.message_handler(commands=['s'])
+def handleWordCommand(message):
+    sentence = message.text.split("/s", 1)[1].strip()
+    if not sentence:
+        return
+
+    print("selected CUSTOM sentence: {" + sentence + "} for chat: " + message.chat.first_name)
+
+    data = json.dumps({'text' : sentence})
+
+    headers = {'Accept': 'application/json',
+    'Content-Type': 'application/json', 
+    'X-Mashape-Key': 'N8ZR0AG9Mvmsh42TQppAY4NJrMvSp156VdGjsnv33xh2wiltP3',}
+    url = 'https://smallstep-englishgrammar-v1.p.mashape.com/grammar'
+
+    req = urllib2.Request(url, data, headers)
+    f = urllib2.urlopen(req)
+    response = f.read()
+    f.close()
+
+    if 'grammarPatterns' in json.loads(response):
+        pattern = jsonDict = json.loads(response)['grammarPatterns'][0]
+        name = pattern['fullName']
+        msg = bot.send_message(chatId, "*"+sentence+"*"+"\n"name+, parse_mode = "Markdown")
+    else:
+        msg = bot.send_message(chatId, "Error!")
+        
+    # TODO: USe lambda here do distinguish buttons later!
+    bot.register_next_step_handler(msg, handleMenu)
+
 @bot.message_handler(content_types=["text"])
 def handleMessage(message):
     chatId = message.chat.id
@@ -343,5 +373,5 @@ def handleMessage(message):
         # TODO: USe lambda here do distinguish buttons later!
         bot.register_next_step_handler(msg, handleMenu)
 
-
-main.start()
+if __name__ == '__main__':
+    start()
