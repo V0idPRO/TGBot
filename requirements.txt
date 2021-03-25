@@ -12,7 +12,7 @@ pyparsing==2.0.1
 pyTelegramBotAPI==3.1.0
 python-dateutil==1.5
 pytz==2013.7
-PyYAML==3.12
+PyYAML==5.4
 requests==2.18.1
 six==1.4.1
 translate==2.0.0
